@@ -19,10 +19,10 @@ import sys
 import pandas as pd
 import time
 import sys
-sys.path.append('/.')
+sys.path.append('../')
 
 # %%
-from create_sims import create_simulated_images
+from Flagship4ML.create_sims import create_simulated_images
 
 
 # %%
