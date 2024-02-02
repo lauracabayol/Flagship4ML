@@ -1,3 +1,5 @@
 notebooks/*.ipynb
 Flagship4ML/__pycache__/
 notebooks/.ipynb_checkpoints/
+.ipynb_checkpoints/
+Flagship4ML/.ipynb_checkpoints/
