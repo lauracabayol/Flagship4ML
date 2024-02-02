@@ -3,31 +3,37 @@
     "band_name": "CFHT_U",
     "t_exp": 100,
     "pix_scale": 0.187,
-    "ZP": 25.74
+    "ZP": 25.74,
+    "psf": 0.5
+      
   },
   "cfht_megacam_g_1_el_model3_odonnell_ext_obs": {
     "band_name": "CFHT_G",
     "t_exp": 100,
     "pix_scale": 0.187,
-    "ZP": 27.11
+    "ZP": 27.11,
+    "psf": 0.5
   },
   "cfht_megacam_r_1_el_model3_odonnell_ext_obs": {
     "band_name": "CFHT_R",
     "t_exp": 100,
     "pix_scale": 0.187,
-    "ZP": 26.74
+    "ZP": 26.74,
+    "psf": 0.5
     
   },
   "cfht_megacam_i_1_el_model3_odonnell_ext_obs": {
     "band_name": "CFHT_I",
     "t_exp": 100,
     "pix_scale": 0.187,
-    "ZP": 26.22
+    "ZP": 26.22,
+    "psf": 0.5
   },
   "cfht_megacam_z_1_el_model3_odonnell_ext_obs": {
     "band_name": "CFHT_Z",
     "t_exp": 100,
     "pix_scale": 0.187,
-    "ZP": 25.02
+    "ZP": 25.02,
+    "psf": 0.5
   }
 }
