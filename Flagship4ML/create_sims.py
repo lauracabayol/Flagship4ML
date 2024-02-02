@@ -12,6 +12,8 @@ from astropy.io import fits
 from astropy.modeling.functional_models import Sersic2D
 from skimage.measure import block_reduce
 from astropy.modeling.functional_models import Moffat2D
+from scipy.signal import fftconvolve
+
 
 class create_simulated_images():
     def __init__(self, catalogue, 
@@ -21,6 +23,7 @@ class create_simulated_images():
                  resolution=10,
                  Ngals=10,
                  add_poisson=True,
+                 add_psf=True,
                  add_constant_background=True,
                  use_dask=False,
                  output_dir='/data/astro/scratch2/lcabayol/NFphotoz/data/CHFT_sims'
@@ -40,14 +43,19 @@ class create_simulated_images():
         self.bands = bands
         self.resolution=resolution
         self.crop_size=crop_size
-        self.xgrid,self.ygrid = np.meshgrid(np.arange(0,600,1), np.arange(0,600,1))
+        self.crop_size_psf = crop_size/2
+        self.xgrid,self.ygrid = np.meshgrid(np.arange(0,self.resolution*self.crop_size,1), np.arange(0,self.resolution*self.crop_size,1))
+        self.psf_xgrid,self.psf_ygrid = np.meshgrid(np.arange(0,self.resolution*self.crop_size_psf,1), np.arange(0,self.resolution*self.crop_size_psf,1))
+
         self.Ngals=Ngals
         self.add_poisson=add_poisson
+        self.add_psf=add_psf
+
         self.add_constant_background=add_constant_background
         self.output_dir=output_dir
 
                                 
-        with open('mapping.json', 'r') as json_file:
+        with open('../mapping.json', 'r') as json_file:
             json_band_photometry = json.load(json_file)
         self.json_band_photometry = json_band_photometry 
                                  
@@ -55,6 +63,7 @@ class create_simulated_images():
         catalogue = self._map_band_names(catalogue) 
         self.catalogue=catalogue
         self.pix_scale = self._get_pix_scale()
+        self.psf = self._get_psf_arcsec()
         self.zp = self._get_zp()
         self.exp_time = self._get_exp_time()
 
@@ -235,6 +244,18 @@ class create_simulated_images():
         self.pix_scales = pix_scales
         return pix_scales
     
+
+    def _get_psf_arcsec(self):
+        """
+        Get PSFs in arcseconds/pix for each band from the JSON mapping.
+
+        Returns:
+        - pix_scales: Dictionary of pixel scales for each band.
+        """
+        psfs = {value['band_name']: value['psf'] for key, value in self.json_band_photometry.items()}
+        self.psfs = psfs
+        return psfs
+    
     
     def _simulate_galaxy(self, photometry, morphology, band):
         """
@@ -251,6 +272,7 @@ class create_simulated_images():
 
         # Extract pixel scale for the specified band
         pix_scale = self.pix_scales[band]
+        psf = self.psfs[band]
 
         # Create 2D Sersic profiles for bulge and disk
         sersic_bulge = Sersic2D(x_0=int(self.resolution * self.crop_size / 2),
@@ -288,11 +310,24 @@ class create_simulated_images():
             # Add noise to the simulated galaxy image
             gal = np.random.poisson(gal)
         if self.add_constant_background is True:
-            bkg = 2 * self.exp_time[ib] * np.ones(shape=(self.crop_size*self.resolution, self.crop_size*self.resolution))
+            bkg = np.random.uniform(1,3,1) * self.exp_time[ib] * np.ones(shape=(self.crop_size*self.resolution, self.crop_size*self.resolution))
             bkg = np.random.poisson(bkg)
             gal = gal + bkg
             
+        if self.add_psf is True:
+            # Add PSF to the simulated galaxy image
+            psf = self.resolution * psf / pix_scale
+            gam = psf / (2. * np.sqrt(np.power(2., 1 / 4.76 ) - 1.))#alph = 4.76 is a default value for the Moffat
+            amp = (4.76 - 1) / (np.pi * gam**2)
+            moff = Moffat2D(amplitude=amp, 
+                            x_0=int(self.resolution * self.crop_size_psf / 2),
+                            y_0=int(self.resolution * self.crop_size_psf / 2), 
+                            gamma=gam, 
+                            alpha=4.76)
+            psf_grid = moff(self.psf_xgrid, self.psf_ygrid)           
+            gal = fftconvolve(gal,psf_grid, mode = 'same')
         
+        #gal = gal + bkg
         gal = block_reduce(gal, (self.resolution, self.resolution), np.mean)
         gal = gal / self.exp_time[ib]
 
