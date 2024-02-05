@@ -25,6 +25,7 @@ class create_simulated_images():
                  add_poisson=True,
                  add_psf=True,
                  add_constant_background=True,
+                 num_exposures=1,
                  use_dask=False,
                  output_dir='/data/astro/scratch2/lcabayol/NFphotoz/data/CHFT_sims'
                 ):
@@ -50,6 +51,7 @@ class create_simulated_images():
         self.Ngals=Ngals
         self.add_poisson=add_poisson
         self.add_psf=add_psf
+        self.num_exposures=num_exposures
 
         self.add_constant_background=add_constant_background
         self.output_dir=output_dir
@@ -340,14 +342,14 @@ class create_simulated_images():
         for ii in range(Ngals):
             os.makedirs(self.output_dir + f'/data_{ii}', exist_ok=False)
             for band in self.bands:
-                gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band)
-                metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
+                for e in range(self.num_exposures):
+                    gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band)
+                    metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
+                    np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{e}.npy',gal)       
+                    np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{e}.npy',metadata)  
 
-                np.save(self.output_dir + f'data_{ii}/cutout_{band}.npy',gal)       
-                np.save(self.output_dir + f'data_{ii}/metadata_{band}.npy',metadata)  
 
-
-    def _create_simulated_galaxy(self, ii, band, photometry, morphology):
+    def _create_simulated_galaxy(self, ii, band, exp, photometry, morphology):
         """
         Create and save simulated galaxy images along with metadata for a specific band.
 
@@ -364,8 +366,8 @@ class create_simulated_images():
         metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
 
         # Save simulated galaxy image and metadata
-        np.save(self.output_dir + f'data_{ii}/cutout_{band}.npy', gal)
-        np.save(self.output_dir + f'data_{ii}/metadata_{band}.npy', metadata)
+        np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{exp}.npy', gal)
+        np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{exp}.npy', metadata)
 
 
     def _create_simulated_catalogue_dask(self, Ngals):
@@ -388,8 +390,9 @@ class create_simulated_images():
 
             # Create delayed tasks for each band
             for band in self.bands:
-                task = dask.delayed(self._create_simulated_galaxy)(ii, band, photometry, morphology)
-                delayed_tasks.append(task)
+                for e in range(self.num_exposures):
+                    task = dask.delayed(self._create_simulated_galaxy)(ii, band, e, photometry, morphology)
+                    delayed_tasks.append(task)
 
         # Compute delayed tasks using the dask scheduler
         dask.compute(*delayed_tasks, scheduler='threads')
