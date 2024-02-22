@@ -121,7 +121,7 @@ class create_simulated_images():
         - electrons: Corresponding electron values.
         """
         #temporary
-        electrons = 10**(-0.4 * (mag - zp[None, :])) * self.exp_time[None,:]
+        electrons = 10**(-0.4 * (mag - zp[None, :])) #* self.exp_time[None,:]
         return electrons
 
         
