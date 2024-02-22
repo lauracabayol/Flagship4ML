@@ -165,12 +165,15 @@ class create_simulated_images():
         - fluxes: DataFrame of flux values for each band.
         """
         # Extract photometry columns from the catalogue
-        photometry = catalogue[['CFHT_U', 'CFHT_G', 'CFHT_R', 'CFHT_I', 'CFHT_Z']]
+        photometry = catalogue[self.bands]
         
         # Convert magnitudes to fluxes using the _flux2mag and _mag2e methods
         # temporary fix
-        mags = self._flux2mag(np.abs(photometry))
-        fluxes = self._mag2e(mags, self.zp)
+        if not any('pau' in band for band in bands):
+            mags = self._flux2mag(np.abs(photometry))
+            fluxes = self._mag2e(mags, self.zp)
+        else:
+            fluxes = photometry
         
         return fluxes
 
