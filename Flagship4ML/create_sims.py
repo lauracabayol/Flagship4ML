@@ -27,6 +27,7 @@ class create_simulated_images():
                  add_constant_background=True,
                  num_exposures=1,
                  use_dask=False,
+                 calibrate_flux=True,
                  output_dir='/data/astro/scratch2/lcabayol/NFphotoz/data/CHFT_sims'
                 ):
 
@@ -52,6 +53,7 @@ class create_simulated_images():
         self.add_poisson=add_poisson
         self.add_psf=add_psf
         self.num_exposures=num_exposures
+        self.calibrate_flux=calibrate_flux
 
         self.add_constant_background=add_constant_background
         self.output_dir=output_dir
@@ -73,9 +75,7 @@ class create_simulated_images():
             self._create_simulated_catalogue_dask(self.Ngals)
         else:
             self._create_simulated_catalogue(self.Ngals)
-                                 
-        
-        
+                                       
         
     def _map_band_names(self, catalogue):
         """
@@ -169,7 +169,7 @@ class create_simulated_images():
         
         # Convert magnitudes to fluxes using the _flux2mag and _mag2e methods
         # temporary fix
-        if not any('pau' in band for band in bands):
+        if not any('pau' in band for band in self.bands):
             mags = self._flux2mag(np.abs(photometry))
             fluxes = self._mag2e(mags, self.zp)
         else:
@@ -214,6 +214,10 @@ class create_simulated_images():
         )
 
         return morphology
+    
+    def _get_zero_point_calibration(self):
+        zp = np.random.uniform(2,4,1)
+        return zp
 
     
     def _get_exp_time(self):
@@ -224,7 +228,7 @@ class create_simulated_images():
         - exp_times: Dictionary of exposure times for each band.
         """
         exp_times = {value['band_name']: value['t_exp'] for key, value in self.json_band_photometry.items()}
-        exp_times = np.array(list(exp_times.values()))
+        exp_times = np.array([exp_times[band] for band in self.bands])
         return exp_times
 
     def _get_zp(self):
@@ -235,7 +239,7 @@ class create_simulated_images():
         - zp: NumPy array of zero-point values for each band.
         """
         zp = {value['band_name']: value['ZP'] for key, value in self.json_band_photometry.items()}
-        zp = np.array(list(zp.values()))
+        zp = np.array([zp[band] for band in self.bands])
         return zp
 
     def _get_pix_scale(self):
@@ -245,7 +249,8 @@ class create_simulated_images():
         Returns:
         - pix_scales: Dictionary of pixel scales for each band.
         """
-        pix_scales = {value['band_name']: value['pix_scale'] for key, value in self.json_band_photometry.items()}
+        pix_scales = {value['band_name']: value['pix_scale'] for key, value in self.json_band_photometry.items() if value['band_name'] in self.bands}
+
         self.pix_scales = pix_scales
         return pix_scales
     
@@ -257,12 +262,12 @@ class create_simulated_images():
         Returns:
         - pix_scales: Dictionary of pixel scales for each band.
         """
-        psfs = {value['band_name']: value['psf'] for key, value in self.json_band_photometry.items()}
+        psfs = {value['band_name']: value['psf'] for key, value in self.json_band_photometry.items() if value['band_name'] in self.bands}
         self.psfs = psfs
         return psfs
     
     
-    def _simulate_galaxy(self, photometry, morphology, band):
+    def _simulate_galaxy(self, photometry, morphology, band, zp=1):
         """
         Simulate a galaxy image based on provided photometry and morphology parameters.
 
@@ -301,6 +306,7 @@ class create_simulated_images():
         # Calculate flux contributions from bulge and disk
         ib = self.bands.index(band)
         flux = photometry[band]*self.exp_time[ib]
+        flux = flux / zp
         flux_bulge = flux * morphology.bulge_disk_fraction
         flux_disk = flux * (1 - morphology.bulge_disk_fraction)
 
@@ -315,7 +321,7 @@ class create_simulated_images():
             # Add noise to the simulated galaxy image
             gal = np.random.poisson(gal)
         if self.add_constant_background is True:
-            bkg = np.random.uniform(1,3,1) * self.exp_time[ib] * np.ones(shape=(self.crop_size*self.resolution, self.crop_size*self.resolution))
+            bkg = np.random.uniform(1,3,1) * self.exp_time[ib] / zp * np.ones(shape=(self.crop_size*self.resolution, self.crop_size*self.resolution))
             bkg = np.random.poisson(bkg)
             gal = gal + bkg
             
@@ -332,7 +338,6 @@ class create_simulated_images():
             psf_grid = moff(self.psf_xgrid, self.psf_ygrid)           
             gal = fftconvolve(gal,psf_grid, mode = 'same')
         
-        #gal = gal + bkg
         gal = block_reduce(gal, (self.resolution, self.resolution), np.mean)
         gal = gal / self.exp_time[ib]
 
@@ -342,17 +347,28 @@ class create_simulated_images():
         photometry = self._get_photometry(self.catalogue)
         morphology = self._get_morphology(self.catalogue)
 
-        for ii in range(Ngals):
-            os.makedirs(self.output_dir + f'/data_{ii}', exist_ok=False)
+        for ii in range(0,Ngals):
+            print(ii)
+            try:
+                os.makedirs(self.output_dir + f'/data_{ii}', exist_ok=False)
+            except FileExistsError:
+                pass
             for band in self.bands:
                 for e in range(self.num_exposures):
-                    gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band)
-                    metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
-                    np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{e}.npy',gal)       
-                    np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{e}.npy',metadata)  
+                    if self.calibrate_flux is True:
+                        zp = self._get_zero_point_calibration()
+                    else:
+                        zp = 1
+                    if not os.path.isfile(self.output_dir + f'data_{ii}/cutout_{band}_exp{e}.npy'):
+                        gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band, zp = zp)
+                        metadata = np.c_[morphology['redshift'][ii], photometry[band][ii], zp]
+                        np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{e}.npy',gal)       
+                        np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{e}.npy',metadata)  
+                    else:
+                        continue
 
 
-    def _create_simulated_galaxy(self, ii, band, exp, photometry, morphology):
+    def _create_simulated_galaxy(self, ii, band, exp, photometry, morphology, zp):
         """
         Create and save simulated galaxy images along with metadata for a specific band.
 
@@ -362,40 +378,45 @@ class create_simulated_images():
         - photometry: Photometry values for the galaxy.
         - morphology: Morphology parameters for the galaxy.
         """
-        # Simulate galaxy image
-        gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band)
+        if not os.path.isfile(self.output_dir + f'data_{ii}/cutout_{band}_exp{exp}.npy'):
+            # Simulate galaxy image
+            gal = self._simulate_galaxy(photometry.iloc[ii], morphology.iloc[ii], band=band, zp =zp)
 
-        # Extract metadata
-        metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
+            # Extract metadata
+            metadata = np.c_[morphology['redshift'][ii], photometry[band][ii]]
 
-        # Save simulated galaxy image and metadata
-        np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{exp}.npy', gal)
-        np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{exp}.npy', metadata)
+            # Save simulated galaxy image and metadata
+            np.save(self.output_dir + f'data_{ii}/cutout_{band}_exp{exp}.npy', gal)
+            np.save(self.output_dir + f'data_{ii}/metadata_{band}_exp{exp}.npy', metadata)
 
 
     def _create_simulated_catalogue_dask(self, Ngals):
         """
-        Create and save a catalog of simulated galaxy images for each band.
-
+        Create and save a catalog of simulated galaxy images for each band and exposure.
+    
         Parameters:
-        - Ngals: Number of galaxies to simulate.
+        - Ngals: int - Number of galaxies to simulate.
         """
         # Get photometry and morphology for the entire catalogue
         photometry = self._get_photometry(self.catalogue)
         morphology = self._get_morphology(self.catalogue)
-
+    
         # List to store delayed tasks
         delayed_tasks = []
-
+    
+        # Iterate over the number of galaxies
         for ii in range(Ngals):
-            # Create a directory for each galaxy
-            os.makedirs(self.output_dir + f'data_{ii}', exist_ok=False)
-
-            # Create delayed tasks for each band
+            # Ensure the directory exists for the current galaxy
+            os.makedirs(os.path.join(self.output_dir, f'data_{ii}'), exist_ok=True)
+    
+            # Generate delayed tasks for each band and exposure
             for band in self.bands:
                 for e in range(self.num_exposures):
-                    task = dask.delayed(self._create_simulated_galaxy)(ii, band, e, photometry, morphology)
+                    zp = self._get_zero_point_calibration() if self.calibrate_flux else 1
+                    # Append the delayed task
+                    task = dask.delayed(self._create_simulated_galaxy)(ii, band, e, photometry, morphology, zp)
                     delayed_tasks.append(task)
+    
+        # Compute delayed tasks using Dask's threaded scheduler
+        dask.compute(*delayed_tasks, scheduler='processes')
 
-        # Compute delayed tasks using the dask scheduler
-        dask.compute(*delayed_tasks, scheduler='threads')
