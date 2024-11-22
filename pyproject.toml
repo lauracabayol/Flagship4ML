@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name="Flagship4ML"
+version="2024.0.0"
+authors = [
+    { name="Laura Cabayol-Garcia", email="lcabayol@pic.es" },
+]
+maintainers = [
+    { name="Laura Cabayol-Garcia", email="lauracabayol@gmail.com" },
+]
+description = "Creates image cutouts of galaxies from a simulated catalogue"
+readme = "README.md"
+keywords = [
+    "Photometry", "Cosmology", "Machine Learning", "Photometric redshfits",
+]
+requires-python = ">= 3.10"
+#dependencies = [
+#]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific :: Cosmology/Astrophysics",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+]
+
+[tool.setuptools.packages.find]
+include = ["Flagship4ML","Flagship4ML.*"]
+namespaces = false
+
+
+[project.urls]
+Homepage="https://github.com/lauracabayol/Flagship4ML"
+Repository="https://github.com/lauracabayol/Flagship4ML.git"
+Issues="https://github.com/lauracabayol/Flagship4ML/issues"
