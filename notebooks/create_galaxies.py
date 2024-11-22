@@ -26,7 +26,7 @@ import sys
 sys.path.append('../')
 
 # %%
-from Flagship4ML.create_sims import create_simulated_images
+from Flagship4ML.sims_generator import create_simulated_images
 
 
 # %%

@@ -1,0 +1,56 @@
+# Simulation parameters
+catalogue: "/Users/lauracabayol/Documents/data/16511_PAU.parquet"
+bands:
+  - pau_nb455
+  - pau_nb465
+  - pau_nb475
+  - pau_nb485
+  - pau_nb495
+  - pau_nb505
+  - pau_nb515
+  - pau_nb525
+  - pau_nb535
+  - pau_nb545
+  - pau_nb555
+  - pau_nb565
+  - pau_nb575
+  - pau_nb585
+  - pau_nb595
+  - pau_nb605
+  - pau_nb615
+  - pau_nb625
+  - pau_nb635
+  - pau_nb645
+  - pau_nb655
+  - pau_nb665
+  - pau_nb675
+  - pau_nb685
+  - pau_nb695
+  - pau_nb705
+  - pau_nb715
+  - pau_nb725
+  - pau_nb735
+  - pau_nb745
+  - pau_nb755
+  - pau_nb765
+  - pau_nb775
+  - pau_nb785
+  - pau_nb795
+  - pau_nb805
+  - pau_nb815
+  - pau_nb825
+  - pau_nb835
+  - pau_nb845
+
+crop_size: 60
+resolution: 10
+Ngals: 2
+
+add_poisson: true
+add_psf: true
+add_constant_background: true
+num_exposures: 3
+use_dask: false
+calibrate_flux: true
+
+output_dir: "/Users/lauracabayol/Documents/data/test_sims"
