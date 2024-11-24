@@ -31,6 +31,20 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov",
+  "pytest-mock",
+  "numpy",
+  "pandas",
+  "astropy",
+  "scipy",
+  "scikit-image",
+  "tqdm",
+  "dask",
+  "pyarrow"
+]
+
 test = [
   "pytest",
 ]
