@@ -17,7 +17,17 @@ keywords = [
     "Photometry", "Cosmology", "Machine Learning", "Photometric redshfits",
 ]
 requires-python = ">= 3.10"
-#dependencies = [
+dependencies = [
+  "numpy",
+  "pandas",
+  "pathlib",
+  "astropy",
+  "scipy",
+  "scikit-image",
+  "tqdm",
+  "dask",
+  "pyarrow"
+]
 #]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
