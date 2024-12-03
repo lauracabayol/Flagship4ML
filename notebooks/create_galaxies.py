@@ -6,12 +6,16 @@
 #       extension: .py
 #       format_name: percent
 #       format_version: '1.3'
-#       jupytext_version: 1.16.2
+#       jupytext_version: 1.16.4
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
+
+# %% [markdown]
+# # THIS NOTEBOOK SHOWS HOW TO CREATE SIMULATED IMAGES AND GALAXIES WITH THIS MODULE.
+#
 
 # %%
 # %load_ext autoreload
@@ -19,113 +23,51 @@
 
 # %%
 import numpy as np
-import sys
 import pandas as pd
-import time
-import sys
-sys.path.append('../')
+from pathlib import Path
 
-# %%
-from Flagship4ML.sims_generator import create_simulated_images
-
-
-# %%
-catalogue = pd.read_parquet('/data/astro/scratch/lcabayol/NFphotoz/data/16511_PAU.parquet',
-                    engine='pyarrow'
-                    )
-
-# %%
-catalogue = catalogue[catalogue.observed_redshift_gal<1]
+from Flagship4ML.f4ml.sims_generator import CreateSimulatedImages
 
 # %% [markdown]
-# catalogue['imag'] = -2.5 * np.log10(catalogue.cfht_megacam_i_1_el_model3_odonnell_ext_error) - 48.6 
-# catalogue = catalogue[catalogue.imag < 24]
+# ## 1. DEFINE THE CATALOGUE
+
+# %% [markdown]
+# #### Make sure your catalogue is already filtered for the desired properties (redshift, magnitude, etc.)
+#
 
 # %%
-#bands = ['CFHT_U', 'CFHT_G', 'CFHT_R', 'CFHT_I', 'CFHT_Z']
-bands = [f'pau_nb{x}' for x in np.arange(455,855,10)]
-bands_el = [f'pau_nb{x}_el' for x in np.arange(455,855,10)]
+catalogue = Path("/data/astro/scratch/lcabayol/NFphotoz/data/16511_PAU.parquet")
+
+# %% [markdown]
+# ### Define the bands you want to use.
 
 # %%
-rename_map = dict(zip(bands_el,bands))
-catalogue = catalogue.rename(mapper = rename_map, axis = 1)
+# bands = ['CFHT_U', 'CFHT_G', 'CFHT_R', 'CFHT_I', 'CFHT_Z']
+# bands = [f'pau_nb{x}' for x in np.arange(455,855,10)]
+bands_el = [f"pau_nb{x}_el" for x in np.arange(455, 855, 10)]
+
+# %% [markdown]
+# # 2. CREATE THE SIMULATED IMAGES
 
 # %%
-#bands = ['CFHT_U', 'CFHT_G', 'CFHT_R', 'CFHT_I', 'CFHT_Z']
-#bands = [f'pau_nb{x}' for x in np.arange(455,855,10)]
+ImageSimulator = create_simulated_images(
+    catalogue=catalogue,
+    bands=bands,
+    crop_size=60,
+    resolution=10,
+    Ngals=1_000,
+    add_poisson=True,
+    add_psf=True,
+    add_constant_background=True,
+    use_dask=False,
+    calibrate_flux=True,
+    num_exposures=3,
+    output_dir="/data/astro/scratch/lcabayol/NFphotoz/data/PAUS_sims_test_v3/",
+)
 
-# %%
-t0=time.time()
-ImageSimulator = create_simulated_images(catalogue,
-                                         Ngals=1_000,
-                                         bands=bands,
-                                         add_poisson=True,
-                                         add_psf=True,
-                                         add_constant_background=True,
-                                         use_dask=False,
-                                         num_exposures=3,
-                                         output_dir='/data/astro/scratch/lcabayol/NFphotoz/data/PAUS_sims_test_v3/',
-                                        )
 
-print(time.time()-t0)
+# %% [markdown]
+# ## ONE CAN ALSO CREATE GALAXIES USING THE CREATE_SIMS.PY SCRIPT.
 
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-
-# %%
-photometry = ImageSimulator._get_photometry(ImageSimulator.catalogue)
-morphology = ImageSimulator._get_morphology(ImageSimulator.catalogue)
-
-# %%
-for ii in range(1000):
-    for band in bands:
-        for exp in range(3):
-            ImageSimulator._create_simulated_galaxy(ii, band, exp,photometry,morphology )
-
-# %%
-
-# %%
-a=1
-
-# %%
-band = 'pau_nb645'
-ii = 0
-exp=2
-
-t = np.load(f'/data/astro/scratch/lcabayol/NFphotoz/data/PAUS_sims_v3/data_{ii}/cutout_{band}_exp{exp}.npy')
-m= np.load(f'/data/astro/scratch/lcabayol/NFphotoz/data/PAUS_sims_v3/data_{ii}/metadata_{band}_exp{exp}.npy')
-
-# %%
-import matplotlib.pyplot as plt
-plt.imshow(t)
-plt.colorbar()
-
-# %%
-exp=1
-ii=0
-for ib, band in enumerate(bands):
-    m= np.load(f'/data/astro/scratch/lcabayol/NFphotoz/data/PAUS_sims_v3/data_{ii}/metadata_{band}_exp{exp}.npy')
-    plt.scatter(ib,m[0,1], color ='steelblue')
-plt.show()
-
-# %%
-m.shape
-
-# %%
-
-# %%
-tnoise = np.random.poisson(100*t)
-
-# %%
-plt.imshow(tnoise/100)
-
-# %%
+# %% [markdown]
+# python Flagship4ML/bin/create_sims.py --config path/to/config.yaml

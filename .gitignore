@@ -5,3 +5,6 @@ notebooks/.ipynb_checkpoints/
 Flagship4ML/.ipynb_checkpoints/
 Flagship4ML/.DS_Store
 Flagship4ML.egg-info/
+Flagship4ML/utils/__pycache__/
+/Flagship4ML/f4ml/__pycache__/
+tests/__pycache__/
